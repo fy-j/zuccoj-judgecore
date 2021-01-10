@@ -612,7 +612,9 @@ static void run_spj() {
 }
 
 int main(int argc, char *argv[]) {
-    log_open("./core_log.txt");
+    parse_arguments(argc, argv);
+
+    log_open((PROBLEM::run_dir+"/core_log.txt").c_str());
 
     // callback at exit
     atexit(output_result);
@@ -622,8 +624,6 @@ int main(int argc, char *argv[]) {
         FM_LOG_FATAL("You must run this program as root.");
         exit(JUDGE_CONF::EXIT_UNPRIVILEGED);
     }
-
-    parse_arguments(argc, argv);
 
     JUDGE_CONF::JUDGE_TIME_LIMIT += PROBLEM::time_limit;
 

@@ -190,7 +190,9 @@ static void compiler_source_code() {
 }
 
 int main(int argc, char *argv[]) {
-    log_open("./compiler_log.txt");
+    parse_arguments(argc, argv);
+
+    log_open((PROBLEM::run_dir+"/compiler_log.txt").c_str());
 
     // callback at exit
     atexit(output_result);
@@ -200,8 +202,6 @@ int main(int argc, char *argv[]) {
         FM_LOG_FATAL("You must run this program as root.");
         exit(JUDGE_CONF::EXIT_UNPRIVILEGED);
     }
-
-    parse_arguments(argc, argv);
 
     if (EXIT_SUCCESS != malarm(ITIMER_REAL, JUDGE_CONF::JUDGE_TIME_LIMIT)) {
         FM_LOG_WARNING("Set the alarm for this judge program failed, %d: %s", errno, strerror(errno));
