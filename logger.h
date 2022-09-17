@@ -37,7 +37,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <unistd.h>
-#include <error.h>
+#include "error.h"
 #include <sys/file.h>
 
 int log_open(const char *filename);
