@@ -15,6 +15,7 @@
 
 #include "core.h"
 #include "logger.h"
+#include "testlib.h"
 
 extern int errno;
 
@@ -86,6 +87,16 @@ static void timeout(int signal) {
 }
 
 // set time limit
+/**
+ * struct itimerval{
+ *      struct timeval it_interval;   时间间隔
+ *      struct timeval it_value;   第一次到点的时间
+ * };
+ * int setitimer(int which, const struct itimerval *new_value,struct itimerval *old_value); //设置定时器
+ * @param which  指定定时方式，ITIMER_REAL 是Linux中的定时器，以系统真实时间来计算，发送SIGALRM信号
+ * @param milliseconds
+ * @return 返回值：成功: 0;失败: -1,设置 errno
+ */
 static int malarm(int which, int milliseconds) {
     struct itimerval t;
     t.it_value.tv_sec     = milliseconds / 1000;
@@ -114,6 +125,8 @@ static void io_redirect() {
  * setuid - Make it only have the minimum system permission of `nobody`
  */
 static void security_control() {
+    //getpwnam()用来逐一搜索参数name 指定的账号名称, 找到时便将该用户的数据以passwd 结构返回。passwd 结构请参考getpwent()
+    //返回 passwd 结构数据, 如果返回NULL 则表示已无数据, 或有错误发生.
     struct passwd *nobody = getpwnam("nobody");
     if (nobody == NULL){
         FM_LOG_WARNING("Well, where is nobody? I cannot live without him. %d: %s", errno, strerror(errno));
@@ -121,11 +134,20 @@ static void security_control() {
     }
 
     // chdir
+    /**
+     * chdir函数用于改变当前工作目录。调用参数是指向目录的指针，调用进程需要有搜索整个目录的权限。
+     * 每个进程都具有一个当前工作目录。在解析相对目录引用时，该目录是搜索路径的开始之处。
+     * 如果调用进程更改了目录，则它只对该进程有效，而不能影响调用它的那个进程。在退出程序时，shell还会返回开始时的那个工作目录。
+     */
     if (EXIT_SUCCESS != chdir(PROBLEM::run_dir.c_str())) {
         FM_LOG_WARNING("chdir(%s) failed, %d: %s", PROBLEM::run_dir.c_str(), errno, strerror(errno));
         exit(JUDGE_CONF::EXIT_SET_SECURITY);
     }
 
+    /**
+     * char *getcwd(char *buf,size_t size);
+     * getcwd()会将当前⼯作⽬录的绝对路径复制到参数buffer所指的内存空间中,参数size为buf的空间⼤⼩
+     */
     char cwd[1024], *tmp = getcwd(cwd, 1024);
     if (tmp == NULL) {
         FM_LOG_WARNING("Oh, where i am now? I cannot getcwd. %d: %s", errno, strerror(errno));
@@ -135,11 +157,16 @@ static void security_control() {
     // chroot
     // JVM cannot run with chroot/setuid
     if (PROBLEM::lang != JUDGE_CONF::LANG_JAVA) {
+        //chroot，即 change root directory (更改 root 目录)。
+        // 在 linux 系统中，系统默认的目录结构都是以 /，即以根 (root) 开始的。而在使用 chroot 之后，系统的目录结构将以指定的位置作为 / 位置。
         if (EXIT_SUCCESS != chroot(cwd)) {
             FM_LOG_WARNING("chroot(%s) failed. %d: %s", cwd, errno, strerror(errno));
             exit(JUDGE_CONF::EXIT_SET_SECURITY);
         }
         // setuid
+        //setuid()用来重新设置执行目前进程的用户识别码。不过，要让此函数有作用，其有效的用户识别码必须为0(root)。
+        // 在Linux下，当root 使用setuid()来变换成其他用户识别码时，root权限会被抛弃，完全转换成该用户身份，
+        // 也就是说，该进程往后将不再具有可setuid()的权利，如果只是向暂时抛弃root 权限，稍后想重新取回权限，则必须使用seteuid()。
         if (EXIT_SUCCESS != setuid(nobody->pw_uid)) {
             FM_LOG_WARNING("setuid(%d) failed. %d: %s", nobody->pw_uid, errno, strerror(errno));
             exit(JUDGE_CONF::EXIT_SET_SECURITY);
@@ -180,11 +207,21 @@ static void security_control_spj() {
     //}
 }
 
-/*
+/**
  * program runtime limit
  * cpu-time/stack-size/output-size
+ * getrlimit()和setrlimit()系统调用允许一个进程读取和修改自己的资源限制
  */
 static void set_limit() {
+    /**
+      * 每个进程在运行时系统不会无限制的允许单个进程不断的消耗资源，因此都会设置资源限制。
+      * Linux系统中使用resource limit来表示，每个进程都可以设置不同的资源限制，
+      * 当前进程和其以后fork的子进程会遵循此限制，而其他进程不受当前进程条件的影响。
+      * struct rlimit {
+　    *  　rlim_t rlim_cur;
+　　  *    rlim_t rlim_max;
+     *  };
+     */
     rlimit lim;
 
     // cpu-time limit
@@ -200,9 +237,12 @@ static void set_limit() {
 
 
     // stack-size limit
+    // RLIMIT_STACK //最大的进程堆栈，以字节为单位。
+    // 读取最大进程堆栈到lim中
     getrlimit(RLIMIT_STACK, &lim);
 
     int rlim = JUDGE_CONF::STACK_SIZE_LIMIT * JUDGE_CONF::KILO;
+    //如果题目设置的堆栈内存大于服务器最大可用大小
     if (lim.rlim_max <= rlim) {
         FM_LOG_WARNING("cannot set stack size to higher(%d <= %d)", lim.rlim_max, rlim);
     } else {
@@ -293,6 +333,7 @@ static void judge() {
         FM_LOG_TRACE("Start Judging.");
 
         // prepare
+        // 获取到了stdin和stdout的文件流
         io_redirect();
         security_control();
 
@@ -300,14 +341,22 @@ static void judge() {
         if (EXIT_SUCCESS != malarm(ITIMER_REAL, real_time_limit)) {
             exit(JUDGE_CONF::EXIT_PRE_JUDGE);
         }
-
+        //题目内存等限制的设置
         set_limit();
 
+        /* ptrace() 是一个由 Linux 内核提供的系统调用，
+           允许一个用户态进程检查、修改另一个进程的内存和寄存器，通常用在类似 gdb、strace 的调试器中，用来实现断点调试、系统调用的跟踪。
+           第一个参数：enum __ptrace_request request：指示了ptrace要执行的命令。
+           第二个参数：pid_t pid: 指示ptrace要跟踪的进程。
+           第三个参数：void *addr: 指示要监控的内存地址。
+           第四个参数：void *data: 存放读取出的或者要写入的数据。
+         */
         if (ptrace(PTRACE_TRACEME, 0, NULL, NULL) < 0) {
             exit(JUDGE_CONF::EXIT_PRE_JUDGE_PTRACE);
         }
 
         /// running
+        /// 我们用fork函数创建新进程后，经常会在新进程中调用exec族函数去执行新的程序；当该进程调用exec族函数时，该进程被替代为新程序，因为exec族函数并不创建新进程，所以前后进程ID并未改变
         if (PROBLEM::lang != JUDGE_CONF::LANG_JAVA){
             execl("./Main", "Main", NULL);
         } else {
@@ -326,6 +375,7 @@ static void judge() {
 
         // monitor child
         while (true) {
+            // 进程调用 exit() 退出执行后，被设置为僵死状态，这时父进程可以通过 wait4() 系统调用查询子进程是否终结，之后再进行最后的操作，彻底删除进程所占用的内存资源
             if (wait4(executive, &status, 0, &rused) < 0) {
                 FM_LOG_WARNING("wait4 failed.");
                 exit(JUDGE_CONF::EXIT_JUDGE);
@@ -344,6 +394,9 @@ static void judge() {
             }
 
             // killed by signal
+            //WIFSIGNALED(status)如果子进程是因为信号而结束则此宏值为真
+            //WIFSTOPPED(status)如果子进程处于暂停执行情况则此宏值为真。一般只有使用WUNTRACED 时才会有此情况。
+            //WSTOPSIG(status)取得引发子进程暂停的信号代码，一般会先用WIFSTOPPED 来判断后才使用此宏
             if (WIFSIGNALED(status) || (WIFSTOPPED(status) && WSTOPSIG(status) != SIGTRAP)) { // To filter out the SIGTRAP signal
                 int signo = 0;
                 if (WIFSIGNALED(status)) {
@@ -546,6 +599,8 @@ static void run_spj() {
     {
         std::string origin_path = (i != 3) ? origin_name[i] : PROBLEM::code_path;
         std::string target_path = PROBLEM::run_dir + target_name[i];
+        //symlink()以参数newpath 指定的名称来建立一个新的连接(符号连接)到参数oldpath 所指定的已存在文件.
+        // 参数oldpath 指定的文件不一定要存在, 如果参数newpath 指定的名称为一已存在的文件则不会建立连接.
         if (EXIT_SUCCESS != symlink(origin_path.c_str(), target_path.c_str()))
             FM_LOG_WARNING("Create symbolic link from '%s' to '%s' failed,%d:%s.", origin_path.c_str(), target_path.c_str(), errno, strerror(errno));
     }
@@ -611,15 +666,110 @@ static void run_spj() {
     }
 }
 
+static void run_spj_new() {
+    // support ljudge style special judge
+    const char origin_name[3][16] = {"./in.in", "./out.out", "./out.txt"};
+    const char target_name[4][16] = {"/input", "/output", "/user_output", "/user_code"};
+    for (int i = 0; i < 4; i++)
+    {
+        FM_LOG_DEBUG("before link output the PROBLEM::code_path = %s",PROBLEM::code_path.c_str());
+        std::string origin_path = (i != 3) ? origin_name[i] : PROBLEM::code_path;
+        std::string target_path = PROBLEM::run_dir + target_name[i];
+        //symlink()以参数newpath 指定的名称来建立一个新的连接(符号连接)到参数oldpath 所指定的已存在文件.
+        // 参数oldpath 指定的文件不一定要存在, 如果参数newpath 指定的名称为一已存在的文件则不会建立连接.
+        if (EXIT_SUCCESS != symlink(origin_path.c_str(), target_path.c_str()))
+            FM_LOG_WARNING("Create symbolic link from '%s' to '%s' failed,%d:%s.", origin_path.c_str(), target_path.c_str(), errno, strerror(errno));
+    }
+    pid_t spj_pid = fork();
+    int status = 0;
+    if (spj_pid < 0) {
+        FM_LOG_WARNING("fork for special judge failed.So sad.");
+        exit(JUDGE_CONF::EXIT_COMPARE_SPJ);
+    } else if (spj_pid == 0) {
+        FM_LOG_TRACE("Woo, I will start special judge!");
+        stdin = freopen(PROBLEM::input_file.c_str(), "r", stdin); // ljudge style
+        stdout = freopen(PROBLEM::spj_output_file.c_str(), "w", stdout);
+        if (stdin == NULL || stdout == NULL) {
+            FM_LOG_WARNING("redirect io in spj failed.");
+            exit(JUDGE_CONF::EXIT_COMPARE_SPJ);
+        }
+        // spj time-limit
+        if (EXIT_SUCCESS != malarm(ITIMER_REAL, JUDGE_CONF::SPJ_TIME_LIMIT)) {
+            FM_LOG_WARNING("Set time limit for spj failed.");
+            exit(JUDGE_CONF::EXIT_COMPARE_SPJ);
+        }
+
+        security_control_spj();
+
+        //use testlib.h run
+        if (PROBLEM::spj_lang != JUDGE_CONF::LANG_JAVA) {
+            execl("./SpecialJudge", "./in.in","./out.ans","./out.txt");
+        } else {
+            execlp("java", "java", "SpecialJudge", NULL);
+        }
+
+        exit(JUDGE_CONF::EXIT_COMPARE_SPJ_FORK);
+    } else {
+        if (wait4(spj_pid, &status, 0, NULL) < 0) {
+            FM_LOG_WARNING("wait4 failed.");
+            exit(JUDGE_CONF::EXIT_COMPARE_SPJ);
+        }
+
+        if (WIFEXITED(status)) {
+            int spj_exit_code = WEXITSTATUS(status);
+            if (spj_exit_code >= 0 && spj_exit_code < 4) {
+                FM_LOG_TRACE("Well, SpecialJudge program normally quit.All is good.");
+                // get spj result
+                switch (spj_exit_code) {
+                    case 0:
+                        PROBLEM::result = JUDGE_CONF::AC;
+                        break;
+                    case 1:
+                        PROBLEM::result = JUDGE_CONF::WA;
+                        break;
+                    case 2:
+                        PROBLEM::result = JUDGE_CONF::PE;
+                        break;
+                }
+                return ;
+            } else {
+                FM_LOG_WARNING("the spj_exit_code = %d and I am sorry to tell you that the special judge program abnormally terminated. %d ", spj_exit_code, WEXITSTATUS(status));
+            }
+        } else if (WIFSIGNALED(status) && WTERMSIG(status) == SIGALRM) {
+            FM_LOG_WARNING("Well, the special judge program consume too much time.");
+        } else {
+            FM_LOG_WARNING("Actually, I do not kwon why the special judge program dead.");
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
     parse_arguments(argc, argv);
 
     log_open((PROBLEM::run_dir+"/core_log.txt").c_str());
 
     // callback at exit
-    atexit(output_result);
+    // 很多时候我们需要在程序退出的时候做一些诸如释放资源的操作，但程序退出的方式有很多种，比如main()函数运行结束、
+    // 在程序的某个地方用exit() 结束程序、用户通过Ctrl+C或Ctrl+break操作来终止程序等等，
+    // 因此需要有一种与程序退出方式无关的方法来进行程序退出时的必要处理。
+    // 方法就 是用atexit()函数来注册程序正常终止时要被调用的函数
+    // 这边的意思是正常退出的时候调用output_result()函数
+        atexit(output_result);
 
     // root check
+    // linux系统中每个进程都有2个用户ID，分别为用户ID（uid）和有效用户ID（euid），
+    // UID一般表示进程的创建者（属于哪个用户创建），而EUID表示进程对于文件和资源的访问权限（具备等同于哪个用户的权限）
+    /** testlib.h的返回状态码
+     * _ok = 0,
+     * _wa = 1,
+     * _pe = 2,
+     * _fail = 3,
+     * _dirt = 4,
+     * _points = 5,
+     * _unexpected_eof = 8,
+     * _partially = 16
+     *
+     */
     if (geteuid() != 0) {
         FM_LOG_FATAL("You must run this program as root.");
         exit(JUDGE_CONF::EXIT_UNPRIVILEGED);
@@ -627,6 +777,8 @@ int main(int argc, char *argv[]) {
 
     JUDGE_CONF::JUDGE_TIME_LIMIT += PROBLEM::time_limit;
 
+    // ITIMER_REAL 是Linux中的定时器，以系统真实时间来计算，发送SIGALRM信号
+    // ITIMER_REAL: 以逝去时间递减
     if (EXIT_SUCCESS != malarm(ITIMER_REAL, JUDGE_CONF::JUDGE_TIME_LIMIT)) {
         FM_LOG_WARNING("Set the alarm for this judge program failed, %d: %s", errno, strerror(errno));
         exit(JUDGE_CONF::EXIT_VERY_FIRST);
@@ -636,7 +788,7 @@ int main(int argc, char *argv[]) {
     judge();
 
     if (PROBLEM::spj) {
-        run_spj();
+        run_spj_new();
     } else {
         if (PROBLEM::result == JUDGE_CONF::SE) {
             PROBLEM::result = compare_output(PROBLEM::output_file, PROBLEM::exec_output);
