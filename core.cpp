@@ -21,43 +21,75 @@ extern int errno;
 
 // output result
 static void output_result() {
-    FILE* result_file = fopen(PROBLEM::result_file.c_str(), "w");
-    switch (PROBLEM::result){
-        case 1:PROBLEM::status = "Compile Error";break;
-        case 2:PROBLEM::status = "Time Limit Exceeded";break;
-        case 3:PROBLEM::status = "Memory Limit Exceeded";break;
-        case 4:PROBLEM::status = "Output Limit Exceeded";break;
-        case 5:PROBLEM::status = "Runtime Error";break;
-        case 6:PROBLEM::status = "Wrong Answer";break;
-        case 7:PROBLEM::status = "Accepted";break;
-        case 8:PROBLEM::status = "Presentation Error";break;
-        default:PROBLEM::status = "System Error";break;
+    FILE *result_file = fopen(PROBLEM::result_file.c_str(), "w");
+    switch (PROBLEM::result) {
+        case 1:
+            PROBLEM::status = "Compile Error";
+            break;
+        case 2:
+            PROBLEM::status = "Time Limit Exceeded";
+            break;
+        case 3:
+            PROBLEM::status = "Memory Limit Exceeded";
+            break;
+        case 4:
+            PROBLEM::status = "Output Limit Exceeded";
+            break;
+        case 5:
+            PROBLEM::status = "Runtime Error";
+            break;
+        case 6:
+            PROBLEM::status = "Wrong Answer";
+            break;
+        case 7:
+            PROBLEM::status = "Accepted";
+            break;
+        case 8:
+            PROBLEM::status = "Presentation Error";
+            break;
+        default:
+            PROBLEM::status = "System Error";
+            break;
     }
     fprintf(result_file, "%d\n", PROBLEM::result);
     fprintf(result_file, "%d\n", PROBLEM::time_usage);
     fprintf(result_file, "%d\n", PROBLEM::memory_usage);
     fprintf(result_file, "%s\n", PROBLEM::extra_message.c_str());
 
-    FM_LOG_TRACE("The final result is %s %d %d %s",PROBLEM::status.c_str(), PROBLEM::time_usage,PROBLEM::memory_usage, PROBLEM::extra_message.c_str());
+    FM_LOG_TRACE("The final result is %s %d %d %s", PROBLEM::status.c_str(), PROBLEM::time_usage, PROBLEM::memory_usage,
+                 PROBLEM::extra_message.c_str());
 }
 
 // parse arguments
-static void parse_arguments(int argc, char* argv[]) {
+static void parse_arguments(int argc, char *argv[]) {
     int opt;
     extern char *optarg;
 
     while ((opt = getopt(argc, argv, "l:t:m:d:s")) != -1) {
         switch (opt) {
-            case 'l': PROBLEM::lang         = atoi(optarg);   break;
-            case 't': PROBLEM::time_limit   = atoi(optarg);   break;
-            case 'm': PROBLEM::memory_limit = atoi(optarg);   break;
-            case 's': PROBLEM::spj          = true;           break;
-            case 'd': PROBLEM::run_dir      = optarg;         break;
+            case 'l':
+                PROBLEM::lang = atoi(optarg);
+                break;
+            case 't':
+                PROBLEM::time_limit = atoi(optarg);
+                break;
+            case 'm':
+                PROBLEM::memory_limit = atoi(optarg);
+                break;
+            case 's':
+                PROBLEM::spj = true;
+                break;
+            case 'd':
+                PROBLEM::run_dir = optarg;
+                break;
             default:
                 FM_LOG_WARNING("Unknown option provided: -%c %s", opt, optarg);
                 exit(JUDGE_CONF::EXIT_BAD_PARAM);
         }
     }
+
+
+    FM_LOG_DEBUG("PROBLEM::run_dir = %s\n", PROBLEM::run_dir.c_str());
 
     PROBLEM::exec_file = PROBLEM::run_dir + "/Main";
     PROBLEM::input_file = PROBLEM::run_dir + "/in.in";
@@ -76,6 +108,13 @@ static void parse_arguments(int argc, char* argv[]) {
         PROBLEM::spj_exec_file = PROBLEM::run_dir + "/SpecialJudge";
         PROBLEM::spj_output_file = PROBLEM::run_dir + "/spj_output.txt";
     }
+
+    FM_LOG_DEBUG("PROBLEM::input_file = %s\n", PROBLEM::input_file.c_str());
+    FM_LOG_DEBUG("PROBLEM::output_file = %s\n", PROBLEM::output_file.c_str());
+    FM_LOG_DEBUG("PROBLEM::exec_output = %s\n", PROBLEM::exec_output.c_str());
+    FM_LOG_DEBUG("PROBLEM::result_file = %s\n", PROBLEM::result_file.c_str());
+    FM_LOG_DEBUG("PROBLEM::spj_output_file = %s\n", PROBLEM::spj_output_file.c_str());
+    
 }
 
 // timeout callback
@@ -99,9 +138,9 @@ static void timeout(int signal) {
  */
 static int malarm(int which, int milliseconds) {
     struct itimerval t;
-    t.it_value.tv_sec     = milliseconds / 1000;
-    t.it_value.tv_usec    = milliseconds % 1000 * 1000; //microsecond
-    t.it_interval.tv_sec  = 0;
+    t.it_value.tv_sec = milliseconds / 1000;
+    t.it_value.tv_usec = milliseconds % 1000 * 1000; //microsecond
+    t.it_interval.tv_sec = 0;
     t.it_interval.tv_usec = 0;
     return setitimer(which, &t, NULL);
 }
@@ -128,7 +167,7 @@ static void security_control() {
     //getpwnam()用来逐一搜索参数name 指定的账号名称, 找到时便将该用户的数据以passwd 结构返回。passwd 结构请参考getpwent()
     //返回 passwd 结构数据, 如果返回NULL 则表示已无数据, 或有错误发生.
     struct passwd *nobody = getpwnam("nobody");
-    if (nobody == NULL){
+    if (nobody == NULL) {
         FM_LOG_WARNING("Well, where is nobody? I cannot live without him. %d: %s", errno, strerror(errno));
         exit(JUDGE_CONF::EXIT_SET_SECURITY);
     }
@@ -267,28 +306,31 @@ static void set_limit() {
 }
 
 #include "rf_table.h"
+
 static bool in_syscall = true;
+
 static bool is_valid_syscall(int lang, int syscall_id, pid_t child, user_regs_struct regs) {
     in_syscall = !in_syscall;
     if (RF_table[syscall_id] == 0) {
         // =0: valid
         long addr;
-        if(syscall_id == SYS_open) {
+        if (syscall_id == SYS_open) {
 #if __WORDSIZE == 32
             addr = regs.ebx;
 #else
             addr = regs.rdi;
 #endif
 #define LONGSIZE sizeof(long)
-            union u{ unsigned long val; char chars[LONGSIZE]; }data;
+            union u {
+                unsigned long val;
+                char chars[LONGSIZE];
+            } data;
             unsigned long i = 0, j = 0, k = 0;
             char filename[300];
-            while (true)
-            {
-                data.val = ptrace(PTRACE_PEEKDATA, child, addr + i,  NULL);
+            while (true) {
+                data.val = ptrace(PTRACE_PEEKDATA, child, addr + i, NULL);
                 i += LONGSIZE;
-                for (j = 0; j < LONGSIZE && data.chars[j] > 0 && k < 256; j++)
-                {
+                for (j = 0; j < LONGSIZE && data.chars[j] > 0 && k < 256; j++) {
                     filename[k++] = data.chars[j];
                 }
                 if (j < LONGSIZE && data.chars[j] == 0)
@@ -296,16 +338,13 @@ static bool is_valid_syscall(int lang, int syscall_id, pid_t child, user_regs_st
             }
             filename[k] = 0;
             //FM_LOG_TRACE("syscall open: filename: %s", filename);
-            if (strstr(filename, "..") != NULL)
-            {
+            if (strstr(filename, "..") != NULL) {
                 return false;
             }
-            if (strstr(filename, "/proc/") == filename)
-            {
+            if (strstr(filename, "/proc/") == filename) {
                 return true;
             }
-            if (strstr(filename, "/dev/tty") == filename)
-            {
+            if (strstr(filename, "/dev/tty") == filename) {
                 PROBLEM::result = JUDGE_CONF::RE;
                 exit(JUDGE_CONF::EXIT_OK);
             }
@@ -357,7 +396,7 @@ static void judge() {
 
         /// running
         /// 我们用fork函数创建新进程后，经常会在新进程中调用exec族函数去执行新的程序；当该进程调用exec族函数时，该进程被替代为新程序，因为exec族函数并不创建新进程，所以前后进程ID并未改变
-        if (PROBLEM::lang != JUDGE_CONF::LANG_JAVA){
+        if (PROBLEM::lang != JUDGE_CONF::LANG_JAVA) {
             execl("./Main", "Main", NULL);
         } else {
             execlp("java", "java", "Main", NULL);
@@ -397,7 +436,8 @@ static void judge() {
             //WIFSIGNALED(status)如果子进程是因为信号而结束则此宏值为真
             //WIFSTOPPED(status)如果子进程处于暂停执行情况则此宏值为真。一般只有使用WUNTRACED 时才会有此情况。
             //WSTOPSIG(status)取得引发子进程暂停的信号代码，一般会先用WIFSTOPPED 来判断后才使用此宏
-            if (WIFSIGNALED(status) || (WIFSTOPPED(status) && WSTOPSIG(status) != SIGTRAP)) { // To filter out the SIGTRAP signal
+            if (WIFSIGNALED(status) ||
+                (WIFSTOPPED(status) && WSTOPSIG(status) != SIGTRAP)) { // To filter out the SIGTRAP signal
                 int signo = 0;
                 if (WIFSIGNALED(status)) {
                     signo = WTERMSIG(status);
@@ -445,7 +485,8 @@ static void judge() {
             }
 
             // MLE
-            PROBLEM::memory_usage = std::max((long int)PROBLEM::memory_usage, rused.ru_minflt * (getpagesize() / JUDGE_CONF::KILO));
+            PROBLEM::memory_usage = std::max((long int) PROBLEM::memory_usage,
+                                             rused.ru_minflt * (getpagesize() / JUDGE_CONF::KILO));
 
             if (PROBLEM::memory_usage > PROBLEM::memory_limit) {
 //                PROBLEM::time_usage = 0;
@@ -471,8 +512,9 @@ static void judge() {
             // check syscall
             if (syscall_id > 0 && !is_valid_syscall(PROBLEM::lang, syscall_id, executive, regs)) {
                 FM_LOG_WARNING("restricted function %d\n", syscall_id);
-                PROBLEM::extra_message = "Killed because of using prohibited system call, syscall_id = " + std::to_string(syscall_id);
-                if (syscall_id == SYS_rt_sigprocmask){
+                PROBLEM::extra_message =
+                        "Killed because of using prohibited system call, syscall_id = " + std::to_string(syscall_id);
+                if (syscall_id == SYS_rt_sigprocmask) {
                     FM_LOG_WARNING("The glibc failed.");
                 } else {
                     FM_LOG_WARNING("restricted function table");
@@ -489,7 +531,7 @@ static void judge() {
         }
     }
 
-    if (PROBLEM::result == JUDGE_CONF::SE){
+    if (PROBLEM::result == JUDGE_CONF::SE) {
         PROBLEM::time_usage += (rused.ru_utime.tv_sec * 1000 + rused.ru_utime.tv_usec / 1000);
         PROBLEM::time_usage += (rused.ru_stime.tv_sec * 1000 + rused.ru_stime.tv_usec / 1000);
     }
@@ -513,7 +555,7 @@ static int compare_output(std::string file_std, std::string file_exec) {
         AC = JUDGE_CONF::AC,
         PE = JUDGE_CONF::PE,
         WA = JUDGE_CONF::WA
-    }status = AC;
+    } status = AC;
     while (true) {
         a = fgetc(fp_std);
         b = fgetc(fp_exe);
@@ -530,7 +572,7 @@ static int compare_output(std::string file_std, std::string file_exec) {
         }
 #define is_space_char(a) ((a == ' ') || (a == '\t') || (a == '\n'))
 
-        if (feof(fp_std) && feof(fp_exe)){
+        if (feof(fp_std) && feof(fp_exe)) {
             //文件结束
             break;
         } else if (feof(fp_std) || feof(fp_exe)) {
@@ -595,14 +637,14 @@ static void run_spj() {
     // support ljudge style special judge
     const char origin_name[3][16] = {"./in.in", "./out.out", "./out.txt"};
     const char target_name[4][16] = {"/input", "/output", "/user_output", "/user_code"};
-    for (int i = 0; i < 4; i++)
-    {
+    for (int i = 0; i < 4; i++) {
         std::string origin_path = (i != 3) ? origin_name[i] : PROBLEM::code_path;
         std::string target_path = PROBLEM::run_dir + target_name[i];
         //symlink()以参数newpath 指定的名称来建立一个新的连接(符号连接)到参数oldpath 所指定的已存在文件.
         // 参数oldpath 指定的文件不一定要存在, 如果参数newpath 指定的名称为一已存在的文件则不会建立连接.
         if (EXIT_SUCCESS != symlink(origin_path.c_str(), target_path.c_str()))
-            FM_LOG_WARNING("Create symbolic link from '%s' to '%s' failed,%d:%s.", origin_path.c_str(), target_path.c_str(), errno, strerror(errno));
+            FM_LOG_WARNING("Create symbolic link from '%s' to '%s' failed,%d:%s.", origin_path.c_str(),
+                           target_path.c_str(), errno, strerror(errno));
     }
     pid_t spj_pid = fork();
     int status = 0;
@@ -644,19 +686,20 @@ static void run_spj() {
                 FM_LOG_TRACE("Well, SpecialJudge program normally quit.All is good.");
                 // get spj result
                 switch (spj_exit_code) {
-                case 0:
-                    PROBLEM::result = JUDGE_CONF::AC;
-                    break;
-                case 1:
-                    PROBLEM::result = JUDGE_CONF::WA;
-                    break;
-                case 2:
-                    PROBLEM::result = JUDGE_CONF::PE;
-                    break;
+                    case 0:
+                        PROBLEM::result = JUDGE_CONF::AC;
+                        break;
+                    case 1:
+                        PROBLEM::result = JUDGE_CONF::WA;
+                        break;
+                    case 2:
+                        PROBLEM::result = JUDGE_CONF::PE;
+                        break;
                 }
-                return ;
+                return;
             } else {
-                FM_LOG_WARNING("I am sorry to tell you that the special judge program abnormally terminated. %d", WEXITSTATUS(status));
+                FM_LOG_WARNING("I am sorry to tell you that the special judge program abnormally terminated. %d",
+                               WEXITSTATUS(status));
             }
         } else if (WIFSIGNALED(status) && WTERMSIG(status) == SIGALRM) {
             FM_LOG_WARNING("Well, the special judge program consume too much time.");
@@ -670,15 +713,15 @@ static void run_spj_new() {
     // support ljudge style special judge
     const char origin_name[3][16] = {"./in.in", "./out.out", "./out.txt"};
     const char target_name[4][16] = {"/input", "/output", "/user_output", "/user_code"};
-    for (int i = 0; i < 4; i++)
-    {
-        FM_LOG_DEBUG("before link output the PROBLEM::code_path = %s",PROBLEM::code_path.c_str());
+    for (int i = 0; i < 4; i++) {
+        FM_LOG_DEBUG("before link output the PROBLEM::code_path = %s", PROBLEM::code_path.c_str());
         std::string origin_path = (i != 3) ? origin_name[i] : PROBLEM::code_path;
         std::string target_path = PROBLEM::run_dir + target_name[i];
         //symlink()以参数newpath 指定的名称来建立一个新的连接(符号连接)到参数oldpath 所指定的已存在文件.
         // 参数oldpath 指定的文件不一定要存在, 如果参数newpath 指定的名称为一已存在的文件则不会建立连接.
         if (EXIT_SUCCESS != symlink(origin_path.c_str(), target_path.c_str()))
-            FM_LOG_WARNING("Create symbolic link from '%s' to '%s' failed,%d:%s.", origin_path.c_str(), target_path.c_str(), errno, strerror(errno));
+            FM_LOG_WARNING("Create symbolic link from '%s' to '%s' failed,%d:%s.", origin_path.c_str(),
+                           target_path.c_str(), errno, strerror(errno));
     }
     pid_t spj_pid = fork();
     int status = 0;
@@ -703,7 +746,7 @@ static void run_spj_new() {
 
         //use testlib.h run
         if (PROBLEM::spj_lang != JUDGE_CONF::LANG_JAVA) {
-            execl("./SpecialJudge", "./in.in","./out.ans","./out.txt");
+            execl("./SpecialJudge", "./in.in", "./out.ans", "./out.txt");
         } else {
             execlp("java", "java", "SpecialJudge", NULL);
         }
@@ -731,9 +774,11 @@ static void run_spj_new() {
                         PROBLEM::result = JUDGE_CONF::PE;
                         break;
                 }
-                return ;
+                return;
             } else {
-                FM_LOG_WARNING("the spj_exit_code = %d and I am sorry to tell you that the special judge program abnormally terminated. %d ", spj_exit_code, WEXITSTATUS(status));
+                FM_LOG_WARNING(
+                        "the spj_exit_code = %d and I am sorry to tell you that the special judge program abnormally terminated. %d ",
+                        spj_exit_code, WEXITSTATUS(status));
             }
         } else if (WIFSIGNALED(status) && WTERMSIG(status) == SIGALRM) {
             FM_LOG_WARNING("Well, the special judge program consume too much time.");
@@ -746,7 +791,7 @@ static void run_spj_new() {
 int main(int argc, char *argv[]) {
     parse_arguments(argc, argv);
 
-    log_open((PROBLEM::run_dir+"/core_log.txt").c_str());
+    log_open((PROBLEM::run_dir + "/core_log.txt").c_str());
 
     // callback at exit
     // 很多时候我们需要在程序退出的时候做一些诸如释放资源的操作，但程序退出的方式有很多种，比如main()函数运行结束、
@@ -754,7 +799,7 @@ int main(int argc, char *argv[]) {
     // 因此需要有一种与程序退出方式无关的方法来进行程序退出时的必要处理。
     // 方法就 是用atexit()函数来注册程序正常终止时要被调用的函数
     // 这边的意思是正常退出的时候调用output_result()函数
-        atexit(output_result);
+    atexit(output_result);
 
     // root check
     // linux系统中每个进程都有2个用户ID，分别为用户ID（uid）和有效用户ID（euid），
