@@ -796,12 +796,12 @@ int main(int argc, char *argv[]) {
 
     log_open((PROBLEM::run_dir + "/core_log.txt").c_str());
 
-//    FM_LOG_WARNING("PROBLEM::run_dir = %s\n", PROBLEM::run_dir.c_str());
-//    FM_LOG_WARNING("PROBLEM::input_file = %s\n", PROBLEM::input_file.c_str());
-//    FM_LOG_WARNING("PROBLEM::output_file = %s\n", PROBLEM::output_file.c_str());
-//    FM_LOG_WARNING("PROBLEM::exec_output = %s\n", PROBLEM::exec_output.c_str());
-//    FM_LOG_WARNING("PROBLEM::result_file = %s\n", PROBLEM::result_file.c_str());
-//    FM_LOG_WARNING("PROBLEM::spj_output_file = %s\n", PROBLEM::spj_output_file.c_str());
+    FM_LOG_WARNING("PROBLEM::run_dir = %s\n", PROBLEM::run_dir.c_str());
+    FM_LOG_WARNING("PROBLEM::input_file = %s\n", PROBLEM::input_file.c_str());
+    FM_LOG_WARNING("PROBLEM::output_file = %s\n", PROBLEM::output_file.c_str());
+    FM_LOG_WARNING("PROBLEM::exec_output = %s\n", PROBLEM::exec_output.c_str());
+    FM_LOG_WARNING("PROBLEM::result_file = %s\n", PROBLEM::result_file.c_str());
+    FM_LOG_WARNING("PROBLEM::spj_output_file = %s\n", PROBLEM::spj_output_file.c_str());
 
     // callback at exit
     // 很多时候我们需要在程序退出的时候做一些诸如释放资源的操作，但程序退出的方式有很多种，比如main()函数运行结束、
