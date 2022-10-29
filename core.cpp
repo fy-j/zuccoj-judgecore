@@ -719,6 +719,7 @@ static void run_spj_new() {
         FM_LOG_DEBUG("before link output the PROBLEM::code_path = %s", PROBLEM::code_path.c_str());
         std::string origin_path = (i != 3) ? origin_name[i] : PROBLEM::code_path;
         std::string target_path = PROBLEM::run_dir + target_name[i];
+        FM_LOG_WARNING("the %d th target_path: %s", i, target_path.c_str());
         //symlink()以参数newpath 指定的名称来建立一个新的连接(符号连接)到参数oldpath 所指定的已存在文件.
         // 参数oldpath 指定的文件不一定要存在, 如果参数newpath 指定的名称为一已存在的文件则不会建立连接.
         if (EXIT_SUCCESS != symlink(origin_path.c_str(), target_path.c_str()))
