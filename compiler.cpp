@@ -194,6 +194,12 @@ int main(int argc, char *argv[]) {
 
     log_open((PROBLEM::run_dir+"/compiler_log.txt").c_str());
 
+    FM_LOG_WARNING("PROBLEM::code_path: %s", PROBLEM::code_path.c_str());
+    FM_LOG_WARNING("PROBLEM::run_dir: %s", PROBLEM::run_dir.c_str());
+    FM_LOG_WARNING("PROBLEM::exec_file: %s", PROBLEM::exec_file.c_str());
+    FM_LOG_WARNING("PROBLEM::exec_output: %s", PROBLEM::exec_output.c_str());
+    FM_LOG_WARNING("PROBLEM::result_file: %s", PROBLEM::result_file.c_str());
+
     // callback at exit
     atexit(output_result);
 
