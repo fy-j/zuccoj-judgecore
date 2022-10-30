@@ -750,7 +750,7 @@ static void run_spj_new() {
 
         //use testlib.h run
         if (PROBLEM::spj_lang != JUDGE_CONF::LANG_JAVA) {
-            execl("./SpecialJudge", "./in.in", "./out.ans", "./out.txt");
+            execl("./SpecialJudge", "./in.in", "./out.out", "./out.txt");
         } else {
             execlp("java", "java", "SpecialJudge", NULL);
         }
@@ -846,7 +846,7 @@ int main(int argc, char *argv[]) {
     judge();
 
     if (PROBLEM::spj) {
-        run_spj();
+        run_spj_new();
     } else {
         if (PROBLEM::result == JUDGE_CONF::SE) {
             PROBLEM::result = compare_output(PROBLEM::output_file, PROBLEM::exec_output);
