@@ -751,7 +751,7 @@ static void run_spj_new() {
         //use testlib.h run
         if (PROBLEM::spj_lang != JUDGE_CONF::LANG_JAVA) {
             FM_LOG_TRACE("now begin to run ./SpecialJudge");
-            execl(PROBLEM::run_dir.c_str(),"./SpecialJudge", "./in.in", "./out.txt", "./out.out");
+            execlp("./SpecialJudge", "./SpecialJudge", "./in.in", "./out.txt", "./out.out",NULL);
         } else {
             execlp("java", "java", "SpecialJudge", NULL);
         }
