@@ -750,11 +750,13 @@ static void run_spj_new() {
 
         //use testlib.h run
         if (PROBLEM::spj_lang != JUDGE_CONF::LANG_JAVA) {
-            execl("./SpecialJudge", "./in.in", "./out.out", "./out.txt");
+            FM_LOG_TRACE("now begin to run ./SpecialJudge");
+            execl("./SpecialJudge", "./in.in", "./out.txt", "./out.out");
         } else {
             execlp("java", "java", "SpecialJudge", NULL);
         }
-
+        FM_LOG_TRACE("sorry, run ./SpecialJudge error");
+        // 现在问题在这报错
         exit(JUDGE_CONF::EXIT_COMPARE_SPJ_FORK);
     } else {
         if (wait4(spj_pid, &status, 0, NULL) < 0) {
@@ -764,6 +766,7 @@ static void run_spj_new() {
 
         if (WIFEXITED(status)) {
             int spj_exit_code = WEXITSTATUS(status);
+            FM_LOG_TRACE("spj_exit_code = %d\n", spj_exit_code);
             if (spj_exit_code >= 0 && spj_exit_code < 4) {
                 FM_LOG_TRACE("Well, SpecialJudge program normally quit.All is good.");
                 // get spj result
